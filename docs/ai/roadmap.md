@@ -21,10 +21,37 @@ implies.
 
 ## Current status
 
-**Phase 0 (documentation & scaffolding) — in progress.**
-Repo hygiene, `AGENTS.md`, ADRs, and these `docs/ai/*` reference docs are
-being set up before feature work starts. Nothing beyond the default Nuxt 4
-starter + tooling exists yet.
+**Phase 0 — done.** Repo hygiene, `AGENTS.md`, ADRs, and `docs/ai/*` are in
+place.
+
+**Phase 1 (Foundation) — done.**
+- Nuxt UI + Tailwind installed; base layout (`SiteHeader`/`SiteFooter`) and
+  homepage with the three primary CTAs (source brief section 24) are live.
+- Stub pages exist for every route in the nav (`/bastur`, category pages,
+  `/guider`, `/verktyg`, `/verktyg/bastukalkylator`, `/jobb`, `/jobb/ny`) so
+  nothing 404s — each is `noindex` via centralized `routeRules` in
+  `nuxt.config.ts` (not per-page) until its real phase replaces it. Each
+  stub has a `TODO(Phase N)` comment pointing at the phase that will build
+  it for real.
+- MongoDB Atlas connection singleton (`server/db/client.ts`, serverless-safe
+  caching) verified working end to end against the real Atlas cluster via
+  `GET /api/health`.
+- SEO infra: `@nuxtjs/sitemap`, `@nuxtjs/robots`, `nuxt-schema-org`
+  installed and verified — sitemap only includes indexable routes,
+  robots.txt reflects route rules, JSON-LD (WebSite/WebPage/Organization
+  graph) renders on pages. A `useCanonicalUrl()` composable (called once
+  globally from `app.vue`) sets canonical `<link>` tags on every route.
+- Umami analytics wired via `app/plugins/analytics.ts`, conditionally
+  injected only when `NUXT_PUBLIC_UMAMI_WEBSITE_ID`/`_SCRIPT_URL` are set.
+  Google Search Console verification meta tag wired the same way
+  (`NUXT_PUBLIC_GOOGLE_SITE_VERIFICATION`), left unset until Phase 4.
+- Vercel project already connected to the `main` branch on GitHub by the
+  operator; MongoDB Atlas env vars already configured there.
+
+**Not yet done from Phase 1's original scope**: setting
+`NUXT_PUBLIC_SITE_URL` to the real production domain in Vercel (still
+needs to be set there — see "Open decisions" below), and a manual
+Lighthouse SEO pass against the live deployment.
 
 Update this section as each phase below starts/completes.
 
@@ -141,3 +168,10 @@ ingestion sources: Polhus (primary), Bauhaus (secondary); Narvi
 - Whether Vercel Hobby tier's daily-cron limit remains sufficient, or
   Vercel Pro is needed — revisit if Phase 2/7 shows ingestion needs more
   frequent runs.
+
+## Action items for the operator (not code changes)
+
+- Set `NUXT_PUBLIC_SITE_URL` in the Vercel project's env vars to the real
+  production domain (currently only set locally to the `localhost`
+  placeholder from `.env.example`) — needed for correct canonical URLs,
+  sitemap entries, and robots.txt in production.

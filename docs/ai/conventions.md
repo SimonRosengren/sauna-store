@@ -73,10 +73,22 @@ tests/                    Vitest tests (co-located tests under server/ are also 
 ## Environment variables
 
 - Documented in `.env.example` — copy to `.env` for local dev, never commit
-  `.env`.
+  `.env`. Same names are set in the Vercel project's env vars for
+  preview/production.
 - Consumed via Nuxt's `runtimeConfig` (`nuxt.config.ts`), not raw
-  `process.env` scattered through the codebase, so server-only vs.
-  public (`NUXT_PUBLIC_*`) is explicit and enforced.
+  `process.env` scattered through the codebase. Two patterns, both defined
+  in one place in `nuxt.config.ts`:
+  - Public/client-exposed vars use the `NUXT_PUBLIC_*` naming convention,
+    which Nuxt maps into `runtimeConfig.public.*` automatically (e.g.
+    `NUXT_PUBLIC_SITE_URL` → `config.public.siteUrl`).
+  - Server-only secrets intentionally use plain, provider-conventional
+    names instead (`MONGODB_URI`, `RESEND_API_KEY`, ...) rather than a
+    `NUXT_`-prefixed equivalent, so they can be set as-is wherever they
+    came from (Atlas, Resend, Vercel Blob) without a renamed alias to
+    remember. These are read explicitly via `process.env.X` inside the
+    `runtimeConfig` block in `nuxt.config.ts` — that's the *only* place
+    `process.env` should appear; everywhere else, use
+    `useRuntimeConfig()`.
 
 ## Git / commits
 
