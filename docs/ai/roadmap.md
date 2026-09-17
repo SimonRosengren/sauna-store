@@ -93,6 +93,17 @@ on a decision (see below).**
 - **Not done**: source health *alerting* (dashboard exists in minimal read
   form; alerting on repeated failures is Phase 7 scope).
 
+Stopping point (deliberate): Phase 2 is left here — Polhus proven, Bauhaus
+paused — until the operator decides which of the three Bauhaus options in
+"Open decisions" to take. **Resuming Phase 2** means picking one of those
+options and either building the Bauhaus adapter (with whatever schema
+change option (a) implies), researching a replacement source (option (b)),
+or explicitly closing Phase 2 as "done for now" with Polhus as the sole
+source and moving to Phase 3 (option (c) — Bauhaus becomes a later
+enrichment feature, not blocking). Phase 3 (catalog pages) can technically
+start against Polhus-only data before this is resolved, since nothing in
+Phase 3 depends on a second source existing.
+
 Update this section as each phase below starts/completes.
 
 ## Phases
@@ -120,15 +131,27 @@ Update this section as each phase below starts/completes.
   `price_history`.
 - `ProductSourceAdapter` interface + registry (`server/sources/`).
 - Extractors: JSON-LD, microdata, OpenGraph (`server/ingestion/extractors/`).
-- **Polhus adapter** first, end to end. **Bauhaus adapter** second
-  (exercises classification since it's a mixed-category retailer).
-- Dedup logic (GTIN/SKU → brand+name+dimensions fallback → pending review).
+- **Polhus adapter** first, end to end — **done**, see "Current status."
+- **Bauhaus adapter** second (exercises classification since it's a
+  mixed-category retailer) — **on hold**: live research found Bauhaus
+  doesn't actually sell complete sauna units (see "Open decisions" below),
+  so this line item as originally scoped is blocked on a decision, not
+  just unbuilt.
+- Dedup logic (GTIN/SKU → brand+name+dimensions fallback → pending review)
+  — done (`server/ingestion/publish.ts`), proven for the "new product" and
+  "same-source update" paths; the cross-source-match path is implemented
+  per ADR 0009 but has nothing to exercise it against yet with only one
+  source live.
 - Chunked/resumable pipeline wired to Vercel Cron via a secret-protected
-  API route + Nitro task.
-- Source health tracking + suspicious-run detection.
-- Minimal read-only admin page to inspect ingestion runs.
+  API route + Nitro task — done.
+- Source health tracking + suspicious-run detection — done (tracking +
+  detection; alerting is Phase 7).
+- Minimal read-only admin page to inspect ingestion runs — done.
 - **Done when**: a real run populates genuine Sauna+Offer documents from
   both sources in Atlas, dedup and provenance are visible, run log exists.
+  **Partially met**: true for Polhus alone; the "both sources" bar depends
+  on resolving the Bauhaus decision, so Phase 2 is not being marked fully
+  done — see "Current status" above.
 - See `docs/ai/ingestion.md` and ADRs 0008–0010.
 
 ### Phase 3 — Catalog
@@ -212,8 +235,34 @@ ingestion sources: Polhus (primary), Bauhaus (secondary); Narvi
   units (re-evaluate Narvi/Jula/Trademax per ADR 0010's rejection reasons,
   or research new candidates), (c) defer Bauhaus to a later phase as an
   enrichment-only source (e.g. surfacing compatible heaters/accessories on
-  a Polhus product page) rather than a Phase 2 dedup-model source. Needs a
-  decision with the operator before more code gets written for it.
+  a Polhus product page) rather than a Phase 2 dedup-model source. Explicitly
+  **not decided yet** — raised with the operator, who wanted to review the
+  research before choosing, so this stays open rather than being resolved
+  unilaterally. Research findings, so a future session doesn't need to
+  re-fetch any of this live:
+  - robots.txt is permissive for what we'd need — only blocks raw Magento
+    `/catalog/category/view/`, `/catalog/product/view/`, and query-string
+    variants, not the friendly URLs real category/product pages use.
+    Sitemap index: `https://www.bauhaus.se/media/sitemap/sitemap.xml`
+    (14 sub-sitemaps).
+  - The `/bastu` landing page (`<title>Bastu | Bygg din egen sauna -
+    BAUHAUS</title>`) links to exactly five subcategories, all components,
+    no complete units: `/varme-kyla/bastu/bastuaggregat` (heaters — Harvia/
+    Mondex/Narvi brands), `/bastubelysning-34307` (lighting),
+    `/bastudorrar` (doors), `/bastupanel` (panels), `/tillbehorbastu`
+    (accessories). Confirmed by fetching `bastuaggregat` directly: heater
+    units only, sold as standalone components.
+  - 0 `<script type="application/ld+json">` blocks found on any Bauhaus
+    page fetched — confirms ADR 0010's claim that Bauhaus uses schema.org
+    **microdata**, not JSON-LD (no microdata extractor exists yet;
+    `server/ingestion/extractors/jsonld.ts` and `opengraph.ts` are the only
+    extractors built so far, both proven against Polhus/generically).
+  - Core problem restated precisely: even with perfect GTIN data, a
+    Bauhaus heater would never actually dedupe against a Polhus cabin —
+    they're not the same physical product (a heater can be *part of* a
+    cabin, which is a different relationship than "same item, different
+    retailer"). ADR 0010's assumption that Bauhaus would exercise
+    cross-source dedup against Polhus doesn't hold.
 - Cloudflare Turnstile on marketplace forms — decide during Phase 6.
 - Whether Vercel Hobby tier's daily-cron limit remains sufficient, or
   Vercel Pro is needed — revisit if Phase 2/7 shows ingestion needs more
