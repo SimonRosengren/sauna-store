@@ -51,10 +51,12 @@ marketplace spam.
 - **API routes** (`server/api/`) are the only place that talks to MongoDB
   directly. Pages never import `server/db` code into client-executed code
   paths.
-- **Cron-triggered routes** (`server/api/cron/*.post.ts`) are protected by
-  comparing a bearer token/header against `CRON_SECRET`. They're invoked by
-  Vercel Cron (`vercel.json`) and internally call **Nitro tasks**
-  (`server/tasks/`) that do the actual batch work. See
+- **Cron-triggered routes** (`server/api/cron/*.get.ts` — Vercel Cron always
+  sends a GET request, not POST) are protected by comparing the
+  `Authorization: Bearer <token>` header Vercel auto-attaches against
+  `CRON_SECRET`. They're invoked by Vercel Cron (`vercel.json`) and
+  internally call **Nitro tasks** (`server/tasks/`, requires
+  `nitro.experimental.tasks: true`) that do the actual batch work. See
   `docs/adr/0004-vercel-hosting-and-cron-strategy.md` for why this is
   chunked/resumable rather than one big job.
 

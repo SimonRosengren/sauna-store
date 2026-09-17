@@ -10,6 +10,11 @@ export default defineNuxtConfig({
     'nuxt-schema-org'
   ],
   css: ['~/assets/css/main.css'],
+  nitro: {
+    // Nitro tasks (server/tasks/*.ts) power the cron-triggered ingestion
+    // batches (docs/adr/0004-vercel-hosting-and-cron-strategy.md).
+    experimental: { tasks: true }
+  },
   typescript: {
     strict: true,
     typeCheck: false
@@ -41,6 +46,7 @@ export default defineNuxtConfig({
   // marked noindex here rather than per-page, so sitemap/robots.txt/meta
   // tags all agree automatically (see docs/ai/seo.md).
   routeRules: {
+    '/admin/**': { robots: false },
     '/bastur/**': { robots: false },
     '/bastutunnor': { robots: false },
     '/vedeldade-bastur': { robots: false },

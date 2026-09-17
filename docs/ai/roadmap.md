@@ -48,10 +48,50 @@ place.
 - Vercel project already connected to the `main` branch on GitHub by the
   operator; MongoDB Atlas env vars already configured there.
 
-**Not yet done from Phase 1's original scope**: setting
-`NUXT_PUBLIC_SITE_URL` to the real production domain in Vercel (still
-needs to be set there — see "Open decisions" below), and a manual
-Lighthouse SEO pass against the live deployment.
+**Not yet done from Phase 1's original scope**: a manual Lighthouse SEO
+pass against the live deployment. (`NUXT_PUBLIC_SITE_URL` is now set in
+Vercel — confirmed via `/robots.txt?mockProductionEnv` pointing at the real
+sitemap URL.)
+
+**Phase 2 (Automated ingestion) — Polhus done end-to-end; Bauhaus blocked
+on a decision (see below).**
+- Shared Zod types (`shared/types/`), Mongo collection accessors + indexes
+  (`server/db/collections.ts`), and the `ProductSourceAdapter` interface +
+  registry (`server/sources/`) are all built and are source-agnostic —
+  adding the next source shouldn't require touching any of this.
+- JSON-LD and OpenGraph extractors (`server/ingestion/extractors/`).
+- **Polhus adapter** (`server/sources/polhus/adapter.ts`) is real and
+  proven: manually run twice against the live site via
+  `GET /api/cron/ingest?sourceId=polhus` (dev + a full production build/
+  preview). First run published 42 real `saunas`/`offers`/`price_history`
+  documents to Atlas (37 bastustugor, 5 bastutunnor) with zero errors;
+  second run proved idempotency (same 42/42/42 counts, no duplicates, no
+  spurious price_history growth). `sources.polhus` is `enabled: true`.
+- Full pipeline (`server/ingestion/pipeline.ts`): discover → fetch →
+  normalize → validate → dedupe → publish, chunked via a
+  `sources.cursor.pendingUrls` carry-over, suspicious-run detection (trailing
+  average drop), `ingestion_runs` logging. Dedup/publish
+  (`server/ingestion/publish.ts`) implements ADR 0009's full priority order
+  (same-source fast path → GTIN → brand+normalized-name → new canonical
+  product), though only the "new canonical product" and "same-source
+  update" paths have been exercised for real so far (Polhus alone has
+  nothing to cross-source-dedupe against yet).
+- Cron wiring: `vercel.json` (daily, 03:00 UTC) → `server/api/cron/ingest.get.ts`
+  (GET — Vercel Cron always sends GET, not POST; this corrects a wrong
+  assumption in an earlier draft of `docs/ai/architecture.md`) → Nitro task
+  `server/tasks/ingest.ts` → `runIngestion()`.
+- Minimal read-only admin view (`/admin/ingestion`, noindexed,
+  password-gated via `ADMIN_PASSWORD` — not full session auth, that's
+  Phase 7) showing recent `ingestion_runs` and `sources` health stats.
+- Unit tests for the pure logic (`normalizeName`, `validateNormalizedProduct`).
+- **Not done**: the Bauhaus adapter. Live verification found Bauhaus's
+  sauna section sells only heaters/doors/panels/accessories, never complete
+  cabins/barrels — a schema/scope mismatch with ADR 0010's assumption that
+  needs a decision before writing code. See "Open decisions" below and
+  `docs/ai/ingestion.md` "Open question: Bauhaus doesn't fit the `saunas`
+  schema as-is."
+- **Not done**: source health *alerting* (dashboard exists in minimal read
+  form; alerting on repeated failures is Phase 7 scope).
 
 Update this section as each phase below starts/completes.
 
@@ -164,6 +204,16 @@ ingestion sources: Polhus (primary), Bauhaus (secondary); Narvi
 
 ## Open decisions to revisit at the relevant phase
 
+- **Bauhaus, Phase 2 (blocking the second adapter)**: Bauhaus only sells
+  sauna heaters/doors/panels/accessories, not complete cabins/barrels — it
+  doesn't fit the `saunas` schema (see `docs/ai/ingestion.md`). Options:
+  (a) extend the data model with a distinct accessory/part concept,
+  (b) replace Bauhaus with a different second source that sells complete
+  units (re-evaluate Narvi/Jula/Trademax per ADR 0010's rejection reasons,
+  or research new candidates), (c) defer Bauhaus to a later phase as an
+  enrichment-only source (e.g. surfacing compatible heaters/accessories on
+  a Polhus product page) rather than a Phase 2 dedup-model source. Needs a
+  decision with the operator before more code gets written for it.
 - Cloudflare Turnstile on marketplace forms — decide during Phase 6.
 - Whether Vercel Hobby tier's daily-cron limit remains sufficient, or
   Vercel Pro is needed — revisit if Phase 2/7 shows ingestion needs more
@@ -171,7 +221,10 @@ ingestion sources: Polhus (primary), Bauhaus (secondary); Narvi
 
 ## Action items for the operator (not code changes)
 
-- Set `NUXT_PUBLIC_SITE_URL` in the Vercel project's env vars to the real
-  production domain (currently only set locally to the `localhost`
-  placeholder from `.env.example`) — needed for correct canonical URLs,
-  sitemap entries, and robots.txt in production.
+- Set `CRON_SECRET` in the Vercel project's env vars (a random string,
+  16+ chars) so `vercel.json`'s daily cron job can authenticate against
+  `server/api/cron/ingest.get.ts` in production — it's currently only set
+  to a dev-only value in the local `.env`.
+- Set `ADMIN_PASSWORD` in the Vercel project's env vars to something real
+  if you want to use `/admin/ingestion` in production — it's currently
+  only set to a dev-only placeholder locally.

@@ -18,6 +18,7 @@ pnpm lint:fix
 pnpm typecheck        # nuxt typecheck (vue-tsc)
 pnpm test             # vitest run
 pnpm test:watch
+pnpm seed:sources     # idempotent: seed the `sources` collection for new adapters
 ```
 
 Always run `pnpm lint`, `pnpm typecheck`, and `pnpm test` before considering a

@@ -15,12 +15,14 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:sources": "tsx scripts/seed-sources.ts"
   },
   "dependencies": {
     "@nuxt/ui": "4.11.1",
     "@nuxtjs/robots": "^6.2.3",
     "@nuxtjs/sitemap": "^8.5.1",
+    "cheerio": "^1.2.0",
     "mongodb": "^7.6.0",
     "nuxt": "^4.5.2",
     "nuxt-schema-org": "^6.3.2",
@@ -33,8 +35,10 @@
     "@nuxt/eslint": "^1.17.0",
     "@nuxt/test-utils": "^4.3.2",
     "@vue/test-utils": "^2.5.0",
+    "dotenv": "^17.4.2",
     "eslint": "^10.10.0",
     "happy-dom": "^20.14.5",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3",
     "vitest": "^5.0.1",
     "vue-tsc": "^3.3.11"
